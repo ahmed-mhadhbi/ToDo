@@ -7,6 +7,7 @@ using System.Text;
 using TodoApp.Domain.Entities;
 using ToDoApp.Application.DTOs;
 using ToDoApp.Application.Services.Users;
+using ToDoApp.Application.Common;
 
 [ApiController]
 [Route("api/auth")]
@@ -25,15 +26,20 @@ public class AuthController : ControllerBase
 
     // ---------------- Register ----------------
     [HttpPost("register")]
-    
     public async Task<IActionResult> Register([FromBody] RegisterUserDto dto)
     {
         if (!ModelState.IsValid)
-            return BadRequest(ModelState);
+            return BadRequest(ApiResponse<string>.Fail("Invalid input"));
 
-        await _userService.RegisterAsync(dto);
-
-        return Ok(new { message = "User registered successfully" });
+        try
+        {
+            await _userService.RegisterAsync(dto);
+            return Ok(ApiResponse<string>.Ok(null, "User registered successfully"));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<string>.Fail(ex.Message));
+        }
     }
 
     // ---------------- Login ----------------
@@ -41,22 +47,21 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Login([FromBody] LoginUserDto dto)
     {
         if (!ModelState.IsValid)
-            return BadRequest(ModelState);
+            return BadRequest(ApiResponse<string>.Fail("Invalid input"));
 
-        var user = await _userService
-            .GetByUsernameAndPasswordAsync(dto.Username, dto.Password);
+        var user = await _userService.GetByUsernameAndPasswordAsync(dto.Username, dto.Password);
 
         if (user == null)
-            return Unauthorized(new { message = "Invalid username or password" });
+            return Unauthorized(ApiResponse<string>.Fail("Invalid username or password"));
 
         var token = GenerateJwtToken(user);
 
-        return Ok(new
+        return Ok(ApiResponse<object>.Ok(new
         {
             accessToken = token,
             tokenType = "Bearer",
             expiresIn = 3600
-        });
+        }));
     }
 
     // ---------------- JWT Helper ----------------
