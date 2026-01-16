@@ -22,6 +22,9 @@ public class TodoController : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateTodoDto dto)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userId == null)
+            return Unauthorized(ApiResponse<string>.Fail("User not logged in"));
+
         await _todoService.CreateAsync(userId, dto.Title);
         return Ok();
     }

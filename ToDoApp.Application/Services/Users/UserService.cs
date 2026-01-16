@@ -20,6 +20,11 @@ public class UserService : IUserService
         _logger = logger;
     }
     //Task<RegisterUserDto>
+    public async Task AddToRoleAsync(User user, string roleName)
+    {
+        await _userManager.AddToRoleAsync(user, roleName);
+    }
+
     public async Task<IdentityResult> RegisterAsync(RegisterUserDto dto)
     {
         try
@@ -29,10 +34,13 @@ public class UserService : IUserService
             var user = new User
             {
                 UserName = dto.Username,
-                Email = dto.Email
+                Email = dto.Email,
+                FullName = dto.FullName
             };
 
             var result = await _userManager.CreateAsync(user, dto.Password);
+            await _userManager.AddToRoleAsync(user, "User");
+
 
             if (!result.Succeeded)
             {
@@ -47,7 +55,9 @@ public class UserService : IUserService
         {
             _logger.LogError(ex, "Exception occurred while registering user: {Username}", dto.Username);
             throw;
+            
         }
+        
     }
 
     public async Task<List<User>> GetAllAsync()
@@ -148,4 +158,11 @@ public class UserService : IUserService
             throw;
         }
     }
+
+
+
+   
+
+
+
 }

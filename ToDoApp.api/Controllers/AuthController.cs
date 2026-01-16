@@ -1,13 +1,14 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using TodoApp.Domain.Entities;
+using ToDoApp.Application.Common;
 using ToDoApp.Application.DTOs;
 using ToDoApp.Application.Services.Users;
-using ToDoApp.Application.Common;
 
 [ApiController]
 [Route("api/auth")]
@@ -15,13 +16,16 @@ public class AuthController : ControllerBase
 {
     private readonly IUserService _userService;
     private readonly IConfiguration _configuration;
+    private readonly UserManager<User> _userManager;
 
     public AuthController(
         IUserService userService,
-        IConfiguration configuration)
+        IConfiguration configuration,
+    UserManager<User> userManager)
     {
         _userService = userService;
         _configuration = configuration;
+        _userManager = userManager;
     }
 
     // ---------------- Register ----------------
@@ -31,16 +35,15 @@ public class AuthController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<string>.Fail("Invalid input"));
 
-        try
-        {
-            await _userService.RegisterAsync(dto);
-            return Ok(ApiResponse<string>.Ok(null, "User registered successfully"));
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(ApiResponse<string>.Fail(ex.Message));
-        }
+        var user = await _userService.RegisterAsync(dto); // returns User
+        if (user == null)
+            return BadRequest(ApiResponse<string>.Fail("User could not be created"));
+
+       
+
+        return Ok(ApiResponse<string>.Ok(null, "User registered successfully"));
     }
+
 
     // ---------------- Login ----------------
     [HttpPost("login")]
@@ -54,7 +57,7 @@ public class AuthController : ControllerBase
         if (user == null)
             return Unauthorized(ApiResponse<string>.Fail("Invalid username or password"));
 
-        var token = GenerateJwtToken(user);
+        var token = await GenerateJwtToken(user);
 
         return Ok(ApiResponse<object>.Ok(new
         {
@@ -65,14 +68,21 @@ public class AuthController : ControllerBase
     }
 
     // ---------------- JWT Helper ----------------
-    private string GenerateJwtToken(User user)
+    private async Task<string> GenerateJwtToken(User user)
     {
+        var roles = await _userManager.GetRolesAsync(user);
+
         var claims = new List<Claim>
+    {
+        new Claim(ClaimTypes.NameIdentifier, user.Id),
+        new Claim(ClaimTypes.Name, user.UserName ?? string.Empty),
+        new Claim("FullName", user.FullName ?? string.Empty)
+    };
+
+        foreach (var role in roles)
         {
-            new Claim(ClaimTypes.NameIdentifier, user.Id),
-            new Claim(ClaimTypes.Name, user.UserName),
-            new Claim("FullName", user.FullName ?? string.Empty)
-        };
+            claims.Add(new Claim(ClaimTypes.Role, role));
+        }
 
         var key = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)
@@ -87,11 +97,17 @@ public class AuthController : ControllerBase
             issuer: _configuration["Jwt:Issuer"],
             audience: _configuration["Jwt:Audience"],
             claims: claims,
-            notBefore: DateTime.UtcNow,
             expires: DateTime.UtcNow.AddMinutes(60),
             signingCredentials: credentials
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
+
+
+
+
+
+
+
 }

@@ -11,8 +11,9 @@ public interface IUserService
     Task<List<User>> GetAllAsync();
     Task<User?> GetByIdAsync(string id);
     Task DeleteAsync(string id);
+    Task AddToRoleAsync(User user, string role);
 
-    
+
     Task<User?> GetByUsernameAndPasswordAsync(string username, string password);
    
 
