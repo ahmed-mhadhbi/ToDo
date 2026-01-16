@@ -1,0 +1,35 @@
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
+using ToDoApp.Application.DTOs;
+using ToDoApp.Application.Services;
+
+namespace ToDoApp.api.Controllers;
+
+[ApiController]
+[Route("api/todos")]
+public class TodoController : ControllerBase
+{
+    private readonly ITodoService _todoService;
+
+    public TodoController(ITodoService todoService)
+    {
+        _todoService = todoService;
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] CreateTodoDto dto)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        await _todoService.CreateAsync(userId, dto.Title);
+        return Ok();
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetMyTodos()
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var todos = await _todoService.GetByUserIdAsync(userId);
+        return Ok(todos);
+    }
+}
