@@ -8,7 +8,7 @@ using TodoApp.Domain.Entities;
 using ToDoApp.Application.IRepo;
 
 
-namespace ToDoApp.Application.Services;
+namespace ToDoApp.Application.Services.ToDos;
 
 
 public class TodoService : ITodoService

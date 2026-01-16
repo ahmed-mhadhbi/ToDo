@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 using TodoApp.Domain.Entities;
 
-namespace ToDoApp.Application.Services;
+namespace ToDoApp.Application.Services.ToDos;
 
 public interface ITodoService
 {

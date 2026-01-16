@@ -7,7 +7,7 @@ using Serilog.Events;
 using System.Text;
 using TodoApp.Domain.Entities;
 using ToDoApp.Application.IRepo;
-using ToDoApp.Application.Services;
+using ToDoApp.Application.Services.ToDos;
 using ToDoApp.Application.Services.Users;
 using ToDoApp.Infrastructure.Data;
 using ToDoApp.Infrastructure.Identity;
@@ -152,7 +152,7 @@ if (app.Environment.IsDevelopment())
 app.UseSerilogRequestLogging();
 app.UseHttpsRedirection();
 
-app.UseAuthentication();   // ?? MUST COME FIRST
+app.UseAuthentication();   
 app.UseAuthorization();
 
 app.MapControllers();
