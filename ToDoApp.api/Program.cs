@@ -7,10 +7,10 @@ using Serilog.Events;
 using System.Text;
 using TodoApp.Domain.Entities;
 using ToDoApp.Application.IRepo;
+using ToDoApp.Application.Services.Auth;
 using ToDoApp.Application.Services.ToDos;
 using ToDoApp.Application.Services.Users;
 using ToDoApp.Infrastructure.Data;
-using ToDoApp.Infrastructure.Identity;
 using ToDoApp.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -106,6 +106,9 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ITodoService, TodoService>();
 builder.Services.AddScoped<ITodoRepository, TodoRepository>();
+builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+
 #endregion
 
 #region SWAGGER
@@ -165,7 +168,7 @@ using (var scope = app.Services.CreateScope())
 
 
 
-    if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
@@ -174,7 +177,7 @@ using (var scope = app.Services.CreateScope())
 app.UseSerilogRequestLogging();
 app.UseHttpsRedirection();
 
-app.UseAuthentication();   
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

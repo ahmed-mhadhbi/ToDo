@@ -1,30 +1,35 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Security.Cryptography;
 using TodoApp.Domain.Entities;
 using ToDoApp.Application.DTOs;
 using ToDoApp.Application.IRepo;
+using ToDoApp.Application.Services.Auth;
+using ToDoApp.Domain.entities;
 
 namespace ToDoApp.Application.Services.Users;
 
 public class UserService : IUserService
 {
     private readonly UserManager<User> _userManager;
+    private readonly IRefreshTokenRepository _refreshTokenRepo;
+    private readonly IJwtService _jwtService;
     private readonly ILogger<UserService> _logger;
 
     public UserService(
         UserManager<User> userManager,
+        IRefreshTokenRepository refreshTokenRepo,
+        IJwtService jwtService,
         ILogger<UserService> logger)
     {
         _userManager = userManager;
+        _refreshTokenRepo = refreshTokenRepo;
+        _jwtService = jwtService;
         _logger = logger;
     }
-    //Task<RegisterUserDto>
-    public async Task AddToRoleAsync(User user, string roleName)
-    {
-        await _userManager.AddToRoleAsync(user, roleName);
-    }
 
+    // ---------- REGISTER ----------
     public async Task<IdentityResult> RegisterAsync(RegisterUserDto dto)
     {
         try
@@ -34,13 +39,10 @@ public class UserService : IUserService
             var user = new User
             {
                 UserName = dto.Username,
-                Email = dto.Email,
-                FullName = dto.FullName
+                Email = dto.Email
             };
 
             var result = await _userManager.CreateAsync(user, dto.Password);
-            await _userManager.AddToRoleAsync(user, "User");
-
 
             if (!result.Succeeded)
             {
@@ -55,11 +57,33 @@ public class UserService : IUserService
         {
             _logger.LogError(ex, "Exception occurred while registering user: {Username}", dto.Username);
             throw;
-            
         }
-        
     }
 
+    // ---------- LOGIN ----------
+    public async Task<(string AccessToken, string RefreshToken)> LoginAsync(LoginUserDto dto)
+    {
+        var user = await _userManager.FindByNameAsync(dto.Username)
+            ?? throw new UnauthorizedAccessException("Invalid credentials");
+
+        if (!await _userManager.CheckPasswordAsync(user, dto.Password))
+            throw new UnauthorizedAccessException("Invalid credentials");
+
+        return await GenerateTokensAsync(user);
+    }
+
+    // ---------- REFRESH TOKEN ----------
+    public async Task<(string AccessToken, string RefreshToken)> RefreshTokenAsync(string refreshToken)
+    {
+        var storedToken = await _refreshTokenRepo.GetValidTokenAsync(refreshToken)
+            ?? throw new UnauthorizedAccessException("Invalid refresh token");
+
+        await _refreshTokenRepo.RevokeAsync(storedToken);
+
+        return await GenerateTokensAsync(storedToken.User);
+    }
+
+    // ---------- USERS ----------
     public async Task<List<User>> GetAllAsync()
     {
         try
@@ -77,7 +101,6 @@ public class UserService : IUserService
             throw;
         }
     }
-
     public async Task<User?> GetByIdAsync(string id)
     {
         try
@@ -97,7 +120,35 @@ public class UserService : IUserService
             throw;
         }
     }
+    public async Task<User?> GetByUsernameAndPasswordAsync(string username, string password)
+    {
+        try
+        {
+            _logger.LogInformation("Authenticating user: {Username}", username);
 
+            var user = await _userManager.FindByNameAsync(username);
+            if (user == null)
+            {
+                _logger.LogWarning("Authentication failed. User not found: {Username}", username);
+                return null;
+            }
+
+            var isValid = await _userManager.CheckPasswordAsync(user, password);
+            if (!isValid)
+            {
+                _logger.LogWarning("Authentication failed. Invalid password for user: {Username}", username);
+                return null;
+            }
+
+            _logger.LogInformation("User authenticated successfully: {Username}", username);
+            return user;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred during authentication for user: {Username}", username);
+            throw;
+        }
+    }
     public async Task DeleteAsync(string id)
     {
         try
@@ -129,39 +180,23 @@ public class UserService : IUserService
         }
     }
 
-    public async Task<User?> GetByUsernameAndPasswordAsync(string username, string password)
+    // ---------- HELPERS ----------
+    private async Task<(string, string)> GenerateTokensAsync(User user)
     {
-        try
+        var accessToken = await _jwtService.GenerateAccessTokenAsync(user);
+        var refreshToken = _jwtService.GenerateRefreshToken();
+
+        await _refreshTokenRepo.SaveAsync(new RefreshToken
         {
-            _logger.LogInformation("Authenticating user: {Username}", username);
+            Token = refreshToken,
+            UserId = user.Id,
+            ExpiresAt = DateTime.UtcNow.AddDays(7)
+        });
 
-            var user = await _userManager.FindByNameAsync(username);
-            if (user == null)
-            {
-                _logger.LogWarning("Authentication failed. User not found: {Username}", username);
-                return null;
-            }
-
-            var isValid = await _userManager.CheckPasswordAsync(user, password);
-            if (!isValid)
-            {
-                _logger.LogWarning("Authentication failed. Invalid password for user: {Username}", username);
-                return null;
-            }
-
-            _logger.LogInformation("User authenticated successfully: {Username}", username);
-            return user;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error occurred during authentication for user: {Username}", username);
-            throw;
-        }
+        return (accessToken, refreshToken);
     }
 
 
-
-   
 
 
 
