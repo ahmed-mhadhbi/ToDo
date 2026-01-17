@@ -63,14 +63,50 @@ public class UserService : IUserService
     // ---------- LOGIN ----------
     public async Task<(string AccessToken, string RefreshToken)> LoginAsync(LoginUserDto dto)
     {
-        var user = await _userManager.FindByNameAsync(dto.Username)
-            ?? throw new UnauthorizedAccessException("Invalid credentials");
+        try
+        {
+            // Validation
+            if (dto is null)
+                throw new ArgumentNullException(nameof(dto));
 
-        if (!await _userManager.CheckPasswordAsync(user, dto.Password))
-            throw new UnauthorizedAccessException("Invalid credentials");
+            if (string.IsNullOrWhiteSpace(dto.Username))
+                throw new ArgumentException("Username is required", nameof(dto.Username));
 
-        return await GenerateTokensAsync(user);
+            if (string.IsNullOrWhiteSpace(dto.Password))
+                throw new ArgumentException("Password is required", nameof(dto.Password));
+
+            var user = await _userManager.FindByNameAsync(dto.Username);
+
+            if (user is null)
+                throw new UnauthorizedAccessException("Invalid credentials");
+
+            var passwordValid = await _userManager.CheckPasswordAsync(user, dto.Password);
+
+            if (!passwordValid)
+                throw new UnauthorizedAccessException("Invalid credentials");
+
+            return await GenerateTokensAsync(user);
+        }
+        catch (ArgumentException)
+        {
+            // Validation errors → bubble up
+            throw;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Auth errors → bubble up (important for 401 responses)
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // Unexpected or infrastructure-related errors
+            throw new ApplicationException(
+                "An error occurred while logging in the user.",
+                ex
+            );
+        }
     }
+
 
     // ---------- REFRESH TOKEN ----------
     public async Task<(string AccessToken, string RefreshToken)> RefreshTokenAsync(string refreshToken)

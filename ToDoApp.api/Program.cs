@@ -78,8 +78,6 @@ builder.Services.AddAuthorization(options =>
 });
 #endregion
 
-
-
 #region DATABASE
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
@@ -162,11 +160,6 @@ using (var scope = app.Services.CreateScope())
         }
     }
 }
-
-
-
-
-
 
 if (app.Environment.IsDevelopment())
 {
