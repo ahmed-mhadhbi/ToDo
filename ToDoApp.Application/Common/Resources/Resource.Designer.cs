@@ -68,5 +68,14 @@ namespace ToDoApp.Application.Common.Resources {
                 return ResourceManager.GetString("loginok", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to UserName is required.
+        /// </summary>
+        public static string User {
+            get {
+                return ResourceManager.GetString("User", resourceCulture);
+            }
+        }
     }
 }

@@ -7,6 +7,7 @@ using ToDoApp.Application.DTOs;
 using ToDoApp.Application.IRepo;
 using ToDoApp.Application.Services.Auth;
 using ToDoApp.Domain.entities;
+using ToDoApp.Application.Common.Resources;
 
 namespace ToDoApp.Application.Services.Users;
 
@@ -16,6 +17,7 @@ public class UserService : IUserService
     private readonly IRefreshTokenRepository _refreshTokenRepo;
     private readonly IJwtService _jwtService;
     private readonly ILogger<UserService> _logger;
+
 
     public UserService(
         UserManager<User> userManager,
@@ -233,7 +235,27 @@ public class UserService : IUserService
     }
 
 
+    public async Task ChangePasswordAsync(string userId,string currentPassword,string newPassword)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null)
+            throw new UnauthorizedAccessException("User not found");
 
+        var result = await _userManager.ChangePasswordAsync(
+            user,
+            currentPassword,
+            newPassword
+        );
+
+        if (!result.Succeeded)
+        {
+            var errors = string.Join(
+                ", ",
+                result.Errors.Select(e => e.Description)
+            );
+            throw new Exception(errors);
+        }
+    }
 
 
 }

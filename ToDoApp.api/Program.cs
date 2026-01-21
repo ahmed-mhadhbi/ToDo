@@ -8,6 +8,7 @@ using System.Text;
 using TodoApp.Domain.Entities;
 using ToDoApp.Application.IRepo;
 using ToDoApp.Application.Services.Auth;
+using ToDoApp.Application.Services.Email;
 using ToDoApp.Application.Services.ToDos;
 using ToDoApp.Application.Services.Users;
 using ToDoApp.Infrastructure.Data;
@@ -33,6 +34,20 @@ builder.Host.UseSerilog();
 
 #region CONTROLLERS
 builder.Services.AddControllers();
+#endregion
+
+#region CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngular",
+        policy =>
+        {
+            policy
+                .WithOrigins("http://localhost:4200")
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        });
+});
 #endregion
 
 #region JWT
@@ -106,6 +121,8 @@ builder.Services.AddScoped<ITodoService, TodoService>();
 builder.Services.AddScoped<ITodoRepository, TodoRepository>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+
 
 #endregion
 
@@ -169,6 +186,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseSerilogRequestLogging();
 app.UseHttpsRedirection();
+
+app.UseCors("AllowAngular");
 
 app.UseAuthentication();
 app.UseAuthorization();

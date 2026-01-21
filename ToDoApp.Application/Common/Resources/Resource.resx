@@ -120,4 +120,7 @@
   <data name="loginok" xml:space="preserve">
     <value>ffffffffffffffffffffffffffffffffffffffffffffffffffff</value>
   </data>
+  <data name="User" xml:space="preserve">
+    <value>UserName is required</value>
+  </data>
 </root>

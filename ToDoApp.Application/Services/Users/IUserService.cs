@@ -15,6 +15,7 @@ public interface IUserService
     Task<(string AccessToken, string RefreshToken)> LoginAsync(LoginUserDto dto);
     Task<(string AccessToken, string RefreshToken)> RefreshTokenAsync(string refreshToken);
 
+    Task ChangePasswordAsync(string userId,string currentPassword,string newPassword);
 
 
 
