@@ -1,6 +1,8 @@
 <Solution>
+  <Folder Name="/Test/">
+    <Project Path="ToDoApp.UnitTest/ToDoApp.UnitTest.csproj" Id="b88bad6c-8bbe-446a-9c74-9140b3ccbce1" />
+  </Folder>
   <Project Path="ToDoApp.api/ToDoApp.api.csproj" />
-  <Project Path="TodoApp.Application.Tests/TodoApp.Application.Tests.csproj" />
   <Project Path="ToDoApp.Application/ToDoApp.Application.csproj" />
   <Project Path="ToDoApp.Domain/ToDoApp.Domain.csproj" />
   <Project Path="ToDoApp.Infrastructure/ToDoApp.Infrastructure.csproj" />

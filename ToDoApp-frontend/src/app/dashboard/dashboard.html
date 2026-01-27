@@ -1,0 +1,77 @@
+<div class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">Mantis</div>
+
+    <div class="menu-section">
+      <span class="section-title">Dashboard</span>
+      <a class="menu-item active">Default</a>
+    </div>
+
+    <div class="menu-section">
+      <span class="section-title">Authentication</span>
+      <a class="menu-item">Login</a>
+      <a class="menu-item">Register</a>
+    </div>
+
+    <div class="menu-section">
+      <span class="section-title">UI Components</span>
+      <a class="menu-item">Typography</a>
+      <a class="menu-item">Colors</a>
+      <a class="menu-item">Icons</a>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <input type="text" placeholder="Ctrl + K" />
+      <div class="topbar-right">
+        <div class="avatar">JD</div>
+      </div>
+    </header>
+
+    <!-- KPI Cards -->
+    <section class="kpi-grid">
+      <div class="kpi-card" *ngFor="let kpi of kpis">
+        <div class="kpi-header">
+          <span class="kpi-title">{{ kpi.title }}</span>
+          <span
+            class="kpi-change"
+            [class.up]="kpi.trend === 'up'"
+            [class.down]="kpi.trend === 'down'"
+          >
+            {{ kpi.change }}
+          </span>
+        </div>
+
+        <div class="kpi-value">{{ kpi.value }}</div>
+        <div class="kpi-note">{{ kpi.note }}</div>
+      </div>
+    </section>
+
+    <!-- Charts -->
+    <section class="charts">
+      <div class="chart-card large">
+        <div class="chart-header">
+          <h3>Unique Visitor</h3>
+          <div class="tabs">
+            <span>Month</span>
+            <span class="active">Week</span>
+          </div>
+        </div>
+        <div class="chart-placeholder">Line Chart</div>
+      </div>
+
+      <div class="chart-card">
+        <h3>Income Overview</h3>
+        <div class="income-value">$7,650</div>
+        <div class="chart-placeholder">Bar Chart</div>
+      </div>
+    </section>
+
+  </div>
+</div>
