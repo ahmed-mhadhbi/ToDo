@@ -29,9 +29,7 @@ public class RefreshTokenRepository : IRefreshTokenRepository
 
     public async Task<RefreshToken?> GetValidTokenAsync(string token)
     {
-        return await _context.RefreshTokens
-            .Include(x => x.User)
-            .FirstOrDefaultAsync(x =>
+        return await _context.RefreshTokens.Include(x => x.User).FirstOrDefaultAsync(x =>
                 x.Token == token &&
                 !x.IsRevoked &&
                 x.ExpiresAt > DateTime.UtcNow);

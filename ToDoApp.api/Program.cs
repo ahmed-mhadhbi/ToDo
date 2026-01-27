@@ -1,14 +1,21 @@
+using FluentEmail.Core;
+using FluentEmail.Smtp;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using Serilog.Events;
+using System.IO;
+using System.Net;
+using System.Net.Mail;
 using System.Text;
 using TodoApp.Domain.Entities;
 using ToDoApp.Application.IRepo;
 using ToDoApp.Application.Services.Auth;
 using ToDoApp.Application.Services.Email;
+using ToDoApp.Application.Services.OTP;
 using ToDoApp.Application.Services.ToDos;
 using ToDoApp.Application.Services.Users;
 using ToDoApp.Infrastructure.Data;
@@ -97,18 +104,24 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")));
-//builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
-//    .AddEntityFrameworkStores<AppDbContext>();
 #endregion
 
-#region IDENTITY (JWT ONLY — NO COOKIES)
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(
+        new DirectoryInfo(
+            Path.Combine(builder.Environment.ContentRootPath, "DataProtectionKeys")
+        )
+    )
+    .SetApplicationName("ToDoApp");
+
+#region IDENTITY
 builder.Services
-    .AddIdentityCore<User>(options =>
+    .AddIdentity<User, IdentityRole>(options =>
     {
         options.Password.RequireDigit = true;
         options.Password.RequiredLength = 6;
+        options.SignIn.RequireConfirmedEmail = true;
     })
-    .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 #endregion
@@ -122,8 +135,26 @@ builder.Services.AddScoped<ITodoRepository, TodoRepository>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IHashOtp, HashOtp>();
 
 
+
+
+#endregion
+
+#region EMAIL CONFIGURATION
+builder.Services
+    .AddFluentEmail("ahmedmha.fd@gmail.com")
+    .AddRazorRenderer()
+    .AddSmtpSender(() => new SmtpClient("smtp.gmail.com")
+    {
+        Port = 587,
+        Credentials = new NetworkCredential(
+            "ahmedmha.fd@gmail.com",
+            "dsfz llew nwzb albr"
+        ),
+        EnableSsl = true
+    });
 #endregion
 
 #region SWAGGER
@@ -182,6 +213,7 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    app.UseDeveloperExceptionPage();
 }
 
 app.UseSerilogRequestLogging();

@@ -20,4 +20,6 @@ public class User : IdentityUser
 
     // Navigation property for Todos
     public ICollection<Todo> Todos { get; set; } = new List<Todo>();
+    public string? EmailOtpHash { get; set; }
+    public DateTime EmailOtpExpiresAt { get; set; }
 }

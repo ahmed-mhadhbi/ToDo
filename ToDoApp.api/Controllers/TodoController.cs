@@ -9,7 +9,7 @@ using ToDoApp.Application.Services.Users;
 
 namespace ToDoApp.api.Controllers;
 
-[Authorize]
+
 [ApiController]
 [Route("api/todos")]
 public class TodoController : ControllerBase

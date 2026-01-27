@@ -9,5 +9,7 @@ namespace ToDoApp.Infrastructure.Identity
 {
     public class ApplicationUser : IdentityUser<Guid>
     {
+        public string? EmailOtpHash { get; set; }
+        public DateTime? EmailOtpExpiresAt { get; set; }
     }
 }
