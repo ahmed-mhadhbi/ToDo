@@ -6,6 +6,7 @@ using TodoApp.Domain.Entities;
 using ToDoApp.Application.DTOs;
 using ToDoApp.Application.IRepo;
 using ToDoApp.Application.Services.Auth;
+using ToDoApp.Application.Services.Email;
 using ToDoApp.Domain.entities;
 using ToDoApp.Application.Common.Resources;
 
