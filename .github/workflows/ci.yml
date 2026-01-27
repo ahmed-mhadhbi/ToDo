@@ -35,7 +35,6 @@ jobs:
           npm run build --if-present
 
       # 5. Run tests
-      - name: |
-          cd ToDoApp-frontend
-          Run tests
+      - name: Run tests
+        working-directory: ToDoApp-frontend
         run: npm test
