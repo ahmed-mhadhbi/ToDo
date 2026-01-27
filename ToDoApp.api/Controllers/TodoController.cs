@@ -11,7 +11,6 @@ using ToDoApp.Application.Services.Users;
 namespace ToDoApp.api.Controllers;
 
 [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-
 [ApiController]
 [Route("api/todos")]
 public class TodoController : ControllerBase
