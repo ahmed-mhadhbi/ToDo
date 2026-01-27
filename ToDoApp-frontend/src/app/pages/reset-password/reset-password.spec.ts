@@ -3,18 +3,18 @@ import { ResetPassword } from './reset-password';
 
  import { provideRouter } from '@angular/router';
  import { ActivatedRoute } from '@angular/router';
+import { of } from 'rxjs';
 
- beforeEach(async () => {
+beforeEach(async () => {
   await TestBed.configureTestingModule({
     imports: [ResetPassword],
     providers: [
-      provideRouter([]),
       {
         provide: ActivatedRoute,
         useValue: {
           snapshot: {
-            paramMap: {
-              get: () => null
+            queryParamMap: {
+              get: () => 'fake-token'
             }
           }
         }
