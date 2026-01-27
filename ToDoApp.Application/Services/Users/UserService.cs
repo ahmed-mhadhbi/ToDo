@@ -2,12 +2,15 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
+using System.Text;
 using TodoApp.Domain.Entities;
+using ToDoApp.Application.Common.Resources;
 using ToDoApp.Application.DTOs;
 using ToDoApp.Application.IRepo;
 using ToDoApp.Application.Services.Auth;
+using ToDoApp.Application.Services.Email;
+using ToDoApp.Application.Services.OTP;
 using ToDoApp.Domain.entities;
-using ToDoApp.Application.Common.Resources;
 
 namespace ToDoApp.Application.Services.Users;
 
@@ -17,18 +20,24 @@ public class UserService : IUserService
     private readonly IRefreshTokenRepository _refreshTokenRepo;
     private readonly IJwtService _jwtService;
     private readonly ILogger<UserService> _logger;
+    private readonly IEmailService _emailService;
+    private readonly IHashOtp _hashOtp;
 
 
     public UserService(
         UserManager<User> userManager,
         IRefreshTokenRepository refreshTokenRepo,
         IJwtService jwtService,
+        IEmailService emailService,
+        IHashOtp hashOtp,
         ILogger<UserService> logger)
     {
         _userManager = userManager;
         _refreshTokenRepo = refreshTokenRepo;
         _jwtService = jwtService;
         _logger = logger;
+        _emailService = emailService;
+        _hashOtp = hashOtp;
     }
 
     // ---------- REGISTER ----------
@@ -41,7 +50,8 @@ public class UserService : IUserService
             var user = new User
             {
                 UserName = dto.Username,
-                Email = dto.Email
+                Email = dto.Email,
+                EmailConfirmed = false
             };
 
             var result = await _userManager.CreateAsync(user, dto.Password);
@@ -52,7 +62,24 @@ public class UserService : IUserService
                 _logger.LogWarning("User registration failed for {Username}. Errors: {Errors}", dto.Username, errors);
                 throw new Exception(errors);
             }
-            _logger.LogInformation("User registered successfully: {Username}", dto.Username);
+
+            // ✅ OTP PART STARTS HERE
+            var otp = GenerateOtp();
+
+            user.EmailOtpHash = HashOtp(otp);
+            user.EmailOtpExpiresAt = DateTime.UtcNow.AddMinutes(10);
+
+            await _userManager.UpdateAsync(user);
+
+            await _emailService.SendAsync(
+                user.Email!,
+                "Verify your email",
+                $"Your verification code is: {otp}\nThis code expires in 10 minutes."
+            );
+            // ✅ OTP PART ENDS HERE
+
+            _logger.LogInformation("User registered & OTP sent: {Username}", dto.Username);
+
             return result;
         }
         catch (Exception ex)
@@ -61,6 +88,7 @@ public class UserService : IUserService
             throw;
         }
     }
+
 
     // ---------- LOGIN ----------
     public async Task<(string AccessToken, string RefreshToken)> LoginAsync(LoginUserDto dto)
@@ -233,9 +261,7 @@ public class UserService : IUserService
 
         return (accessToken, refreshToken);
     }
-
-
-    public async Task ChangePasswordAsync(string userId,string currentPassword,string newPassword)
+    public async Task ChangePasswordAsync(string userId, string currentPassword, string newPassword)
     {
         var user = await _userManager.FindByIdAsync(userId);
         if (user == null)
@@ -257,5 +283,16 @@ public class UserService : IUserService
         }
     }
 
+    private string GenerateOtp()
+    {
+        return RandomNumberGenerator.GetInt32(100000, 999999).ToString();
+    }
+
+    private string HashOtp(string otp)
+    {
+        using var sha = SHA256.Create();
+        var bytes = Encoding.UTF8.GetBytes(otp);
+        return Convert.ToBase64String(sha.ComputeHash(bytes));
+    }
 
 }

@@ -7,6 +7,7 @@ using ToDoApp.Application.Common;
 using ToDoApp.Application.DTOs;
 using ToDoApp.Application.DTOs.Auth;
 using ToDoApp.Application.Services.Email;
+using ToDoApp.Application.Services.OTP;
 using ToDoApp.Application.Services.Users;
 
 namespace ToDoApp.Api.Controllers;
@@ -19,12 +20,18 @@ public class AuthController : ControllerBase
     private readonly IUserService _userService;
     private readonly IEmailService _emailService;
     private readonly UserManager<User> _userManager;
+    private readonly IConfiguration _configuration;
+    private readonly ILogger<AuthController> _logger;
+    private readonly IHashOtp _hashOtp;
 
-    public AuthController(IUserService userService, IEmailService emailService , UserManager<User> userManager)
+    public AuthController(IUserService userService, IHashOtp hashOtp, IEmailService emailService , UserManager<User> userManager, IConfiguration configuration , ILogger<AuthController> logger )
     {
         _userService = userService;
         _emailService = emailService;
         _userManager = userManager;
+        _configuration = configuration;
+        _logger = logger;
+        _hashOtp = hashOtp;
 
     }
 
@@ -33,8 +40,41 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Register(RegisterUserDto dto)
     {
         await _userService.RegisterAsync(dto);
-        return Ok(ApiResponse<string>.Ok(null, "User registered successfully"));
+        return Ok(ApiResponse<string>.Ok(null, "User registered successfully check your Email"));
     }
+
+    [HttpPost("verify-email")]
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyOtpDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Otp))
+            return BadRequest("Invalid data");
+
+        var user = await _userManager.FindByEmailAsync(dto.Email);
+        if (user == null)
+            return BadRequest("Invalid email");
+
+        // 🔒 NULL SAFETY (THIS PREVENTS 500)
+        if (user.EmailOtpHash == null || user.EmailOtpExpiresAt == null)
+            return BadRequest("OTP not found");
+
+        if (user.EmailOtpExpiresAt < DateTime.UtcNow)
+            return BadRequest("OTP expired");
+
+        var hashedOtp = _hashOtp.Hashotp(dto.Otp);
+
+        if (hashedOtp != user.EmailOtpHash)
+            return BadRequest("Invalid OTP");
+
+        user.EmailConfirmed = true;
+        user.EmailOtpHash = null;
+        user.EmailOtpExpiresAt = default;
+
+        await _userManager.UpdateAsync(user);
+
+        return Ok(new { message = "Email verified successfully" });
+    }
+
+
 
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginUserDto dto)
@@ -74,7 +114,7 @@ public class AuthController : ControllerBase
 
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword(
-    [FromBody] ResetPasswordDto dto)
+ [FromBody] ResetPasswordDto dto)
     {
         var user = await _userManager.FindByEmailAsync(dto.Email);
         if (user == null)
@@ -92,7 +132,7 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Password reset successful" });
     }
 
-
+    
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh(RefreshTokenRequestDto dto)
     {

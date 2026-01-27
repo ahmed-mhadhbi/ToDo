@@ -36,5 +36,7 @@ public class EmailService : IEmailService
         message.To.Add(to);
 
         await smtp.SendMailAsync(message);
+
     }
+
 }

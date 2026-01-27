@@ -14,5 +14,7 @@ public interface IJwtService
     Task<string> GenerateAccessTokenAsync(User user);
     string GenerateRefreshToken();
     Task<bool> ResetPasswordAsync(string email, string token, string newPassword);
+
+    Task<string> GenerateAccessTokenMailAsync(User user);
 }
 
