@@ -7,10 +7,11 @@ using Serilog.Events;
 using System.Text;
 using TodoApp.Domain.Entities;
 using ToDoApp.Application.IRepo;
+using ToDoApp.Application.Services.Auth;
+using ToDoApp.Application.Services.Email;
 using ToDoApp.Application.Services.ToDos;
 using ToDoApp.Application.Services.Users;
 using ToDoApp.Infrastructure.Data;
-using ToDoApp.Infrastructure.Identity;
 using ToDoApp.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,6 +34,20 @@ builder.Host.UseSerilog();
 
 #region CONTROLLERS
 builder.Services.AddControllers();
+#endregion
+
+#region CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngular",
+        policy =>
+        {
+            policy
+                .WithOrigins("http://localhost:4200")
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        });
+});
 #endregion
 
 #region JWT
@@ -78,8 +93,6 @@ builder.Services.AddAuthorization(options =>
 });
 #endregion
 
-
-
 #region DATABASE
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
@@ -106,6 +119,11 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ITodoService, TodoService>();
 builder.Services.AddScoped<ITodoRepository, TodoRepository>();
+builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+
+
 #endregion
 
 #region SWAGGER
@@ -143,6 +161,23 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+// Seed roles
+using (var scope = app.Services.CreateScope())
+{
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+
+    string[] roles = new[] { "Admin", "User" };
+
+    foreach (var role in roles)
+    {
+        if (!await roleManager.RoleExistsAsync(role))
+        {
+            await roleManager.CreateAsync(new IdentityRole(role));
+        }
+    }
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -152,7 +187,9 @@ if (app.Environment.IsDevelopment())
 app.UseSerilogRequestLogging();
 app.UseHttpsRedirection();
 
-app.UseAuthentication();   
+app.UseCors("AllowAngular");
+
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

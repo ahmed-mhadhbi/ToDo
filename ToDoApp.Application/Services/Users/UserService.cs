@@ -1,25 +1,37 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Security.Cryptography;
 using TodoApp.Domain.Entities;
 using ToDoApp.Application.DTOs;
 using ToDoApp.Application.IRepo;
+using ToDoApp.Application.Services.Auth;
+using ToDoApp.Domain.entities;
+using ToDoApp.Application.Common.Resources;
 
 namespace ToDoApp.Application.Services.Users;
 
 public class UserService : IUserService
 {
     private readonly UserManager<User> _userManager;
+    private readonly IRefreshTokenRepository _refreshTokenRepo;
+    private readonly IJwtService _jwtService;
     private readonly ILogger<UserService> _logger;
+
 
     public UserService(
         UserManager<User> userManager,
+        IRefreshTokenRepository refreshTokenRepo,
+        IJwtService jwtService,
         ILogger<UserService> logger)
     {
         _userManager = userManager;
+        _refreshTokenRepo = refreshTokenRepo;
+        _jwtService = jwtService;
         _logger = logger;
     }
-    //Task<RegisterUserDto>
+
+    // ---------- REGISTER ----------
     public async Task<IdentityResult> RegisterAsync(RegisterUserDto dto)
     {
         try
@@ -50,6 +62,66 @@ public class UserService : IUserService
         }
     }
 
+    // ---------- LOGIN ----------
+    public async Task<(string AccessToken, string RefreshToken)> LoginAsync(LoginUserDto dto)
+    {
+        try
+        {
+            // Validation
+            if (dto is null)
+                throw new ArgumentNullException(nameof(dto));
+
+            if (string.IsNullOrWhiteSpace(dto.Username))
+                throw new ArgumentException("Username is required", nameof(dto.Username));
+
+            if (string.IsNullOrWhiteSpace(dto.Password))
+                throw new ArgumentException("Password is required", nameof(dto.Password));
+
+            var user = await _userManager.FindByNameAsync(dto.Username);
+
+            if (user is null)
+                throw new UnauthorizedAccessException("Invalid credentials");
+
+            var passwordValid = await _userManager.CheckPasswordAsync(user, dto.Password);
+
+            if (!passwordValid)
+                throw new UnauthorizedAccessException("Invalid credentials");
+
+            return await GenerateTokensAsync(user);
+        }
+        catch (ArgumentException)
+        {
+            // Validation errors → bubble up
+            throw;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Auth errors → bubble up (important for 401 responses)
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // Unexpected or infrastructure-related errors
+            throw new ApplicationException(
+                "An error occurred while logging in the user.",
+                ex
+            );
+        }
+    }
+
+
+    // ---------- REFRESH TOKEN ----------
+    public async Task<(string AccessToken, string RefreshToken)> RefreshTokenAsync(string refreshToken)
+    {
+        var storedToken = await _refreshTokenRepo.GetValidTokenAsync(refreshToken)
+            ?? throw new UnauthorizedAccessException("Invalid refresh token");
+
+        await _refreshTokenRepo.RevokeAsync(storedToken);
+
+        return await GenerateTokensAsync(storedToken.User);
+    }
+
+    // ---------- USERS ----------
     public async Task<List<User>> GetAllAsync()
     {
         try
@@ -67,7 +139,6 @@ public class UserService : IUserService
             throw;
         }
     }
-
     public async Task<User?> GetByIdAsync(string id)
     {
         try
@@ -87,7 +158,35 @@ public class UserService : IUserService
             throw;
         }
     }
+    public async Task<User?> GetByUsernameAndPasswordAsync(string username, string password)
+    {
+        try
+        {
+            _logger.LogInformation("Authenticating user: {Username}", username);
 
+            var user = await _userManager.FindByNameAsync(username);
+            if (user == null)
+            {
+                _logger.LogWarning("Authentication failed. User not found: {Username}", username);
+                return null;
+            }
+
+            var isValid = await _userManager.CheckPasswordAsync(user, password);
+            if (!isValid)
+            {
+                _logger.LogWarning("Authentication failed. Invalid password for user: {Username}", username);
+                return null;
+            }
+
+            _logger.LogInformation("User authenticated successfully: {Username}", username);
+            return user;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred during authentication for user: {Username}", username);
+            throw;
+        }
+    }
     public async Task DeleteAsync(string id)
     {
         try
@@ -119,33 +218,44 @@ public class UserService : IUserService
         }
     }
 
-    public async Task<User?> GetByUsernameAndPasswordAsync(string username, string password)
+    // ---------- HELPERS ----------
+    private async Task<(string, string)> GenerateTokensAsync(User user)
     {
-        try
+        var accessToken = await _jwtService.GenerateAccessTokenAsync(user);
+        var refreshToken = _jwtService.GenerateRefreshToken();
+
+        await _refreshTokenRepo.SaveAsync(new RefreshToken
         {
-            _logger.LogInformation("Authenticating user: {Username}", username);
+            Token = refreshToken,
+            UserId = user.Id,
+            ExpiresAt = DateTime.UtcNow.AddDays(7)
+        });
 
-            var user = await _userManager.FindByNameAsync(username);
-            if (user == null)
-            {
-                _logger.LogWarning("Authentication failed. User not found: {Username}", username);
-                return null;
-            }
+        return (accessToken, refreshToken);
+    }
 
-            var isValid = await _userManager.CheckPasswordAsync(user, password);
-            if (!isValid)
-            {
-                _logger.LogWarning("Authentication failed. Invalid password for user: {Username}", username);
-                return null;
-            }
 
-            _logger.LogInformation("User authenticated successfully: {Username}", username);
-            return user;
-        }
-        catch (Exception ex)
+    public async Task ChangePasswordAsync(string userId,string currentPassword,string newPassword)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null)
+            throw new UnauthorizedAccessException("User not found");
+
+        var result = await _userManager.ChangePasswordAsync(
+            user,
+            currentPassword,
+            newPassword
+        );
+
+        if (!result.Succeeded)
         {
-            _logger.LogError(ex, "Error occurred during authentication for user: {Username}", username);
-            throw;
+            var errors = string.Join(
+                ", ",
+                result.Errors.Select(e => e.Description)
+            );
+            throw new Exception(errors);
         }
     }
+
+
 }
