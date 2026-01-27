@@ -48,7 +48,7 @@ namespace ToDoApp.UnitTest.Services
             // Assert
             _repoMock.Verify(r => r.AddAsync(It.Is<Todo>(
                 t => t.UserId == userId && t.Title == title
-            )), Times.Once);
+            )), Times.Once); 
         }
 
         [Theory]
