@@ -25,14 +25,15 @@ jobs:
       # 3. Install dependencies
       - name: Install dependencies
         run: |
-          cd ToDoApp-front
+          cd ToDoApp-frontend
           npm install
 
       # 4. Run Angular build
       run: |
-          cd ToDoApp-front
+          cd ToDoApp-frontend
           npm run build --if-present
 
       # 5. Run tests
       - name: Run tests
         run: npm test
+
