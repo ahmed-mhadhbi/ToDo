@@ -1,8 +1,29 @@
  import { ComponentFixture, TestBed } from '@angular/core/testing';
-
  import { VerifyEmailComponent } from './verify-email';
 
- describe('VerifyEmail', () => {
+ import { provideRouter } from '@angular/router';
+ import { ActivatedRoute } from '@angular/router';
+
+ beforeEach(async () => {
+  await TestBed.configureTestingModule({
+    imports: [VerifyEmailComponent],
+    providers: [
+      provideRouter([]),
+      {
+        provide: ActivatedRoute,
+        useValue: {
+          snapshot: {
+            paramMap: {
+              get: () => null
+            }
+          }
+        }
+      }
+    ]
+  }).compileComponents();
+});
+
+ describe('VerifyEmailComponent', () => {
    let component: VerifyEmailComponent;
    let fixture: ComponentFixture<VerifyEmailComponent>;
    beforeEach(async () => {
